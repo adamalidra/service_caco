@@ -4,7 +4,7 @@ CACO Calculator for HLS peers to estimate baseline credit impact from workload i
 
 ## Usage
 
-Open `/tmp/workspace/adamalidra/service_caco/index.html` in a browser and enter:
+Open `index.html` in a browser and enter:
 
 - Current baseline credits
 - Workload increase percentage

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CACO Baseline Credit Calculator</title>
+    <title>HLS Baseline Credit Calculator</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -46,7 +46,7 @@
     </style>
   </head>
   <body>
-    <h1>CACO Baseline Credit Calculator</h1>
+    <h1>HLS Baseline Credit Calculator</h1>
     <p>
       Use this calculator to estimate recommended baseline credit adjustments based on workload
       increase and generate guidance that can be shared internally and with customers.
@@ -75,6 +75,10 @@
         });
       }
 
+      function formatPercent(value) {
+        return Number(value).toFixed(2);
+      }
+
       function getApprovalLevel(increasePercent) {
         if (increasePercent <= 10) return "Standard approval path";
         if (increasePercent <= 25) return "Manager + finance approval path";
@@ -100,7 +104,7 @@
             formatCredits(currentBaseline) +
             " credits/month\n" +
             "- Workload increase: " +
-            formatCredits(increasePercent) +
+            formatPercent(increasePercent) +
             "%\n" +
             "- Recommended baseline: " +
             formatCredits(newBaseline) +
