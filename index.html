@@ -55,14 +55,30 @@
     <div class="card">
       <div class="field">
         <label for="baselineCredits">Current baseline credits (monthly)</label>
-        <input id="baselineCredits" type="number" min="0" step="0.01" value="0" />
+        <input
+          id="baselineCredits"
+          type="number"
+          min="0"
+          step="0.01"
+          value="0"
+          aria-describedby="inputHelp"
+        />
       </div>
       <div class="field">
         <label for="workloadIncrease">Workload increase (%)</label>
-        <input id="workloadIncrease" type="number" min="0" step="0.1" value="0" />
+        <input
+          id="workloadIncrease"
+          type="number"
+          min="0"
+          step="0.1"
+          value="0"
+          aria-describedby="inputHelp"
+        />
       </div>
-      <button id="calculateBtn" type="button">Calculate guidance</button>
-      <button id="resetBtn" type="button">Reset</button>
+      <p id="inputHelp">Enter non-negative numeric values. Decimals are allowed.</p>
+      <button id="calculateBtn" type="button" aria-describedby="buttonHelp">Calculate guidance</button>
+      <button id="resetBtn" type="button" aria-describedby="buttonHelp">Reset</button>
+      <p id="buttonHelp">Calculate updates results below. Reset clears both fields and output.</p>
 
       <div class="result" id="result" aria-live="polite"></div>
     </div>
@@ -121,10 +137,19 @@
 
       function renderGuidance() {
         const resultEl = document.getElementById("result");
-        const baselineValue = Number(document.getElementById("baselineCredits").value);
-        const increaseValue = Number(document.getElementById("workloadIncrease").value);
+        const baselineRaw = document.getElementById("baselineCredits").value;
+        const increaseRaw = document.getElementById("workloadIncrease").value;
+        const baselineValue = Number(baselineRaw);
+        const increaseValue = Number(increaseRaw);
 
-        if (Number.isNaN(baselineValue) || Number.isNaN(increaseValue) || baselineValue < 0 || increaseValue < 0) {
+        if (
+          baselineRaw.trim() === "" ||
+          increaseRaw.trim() === "" ||
+          Number.isNaN(baselineValue) ||
+          Number.isNaN(increaseValue) ||
+          baselineValue < 0 ||
+          increaseValue < 0
+        ) {
           resultEl.innerHTML =
             "<strong>Please enter non-negative numeric values for both fields.</strong>";
           return;
@@ -145,7 +170,7 @@
           guidance.approvalLevel +
           "</div>" +
           "<label for='guidanceSummary'><strong>Shareable summary</strong></label>" +
-          "<textarea id='guidanceSummary' readonly>" +
+          "<textarea id='guidanceSummary' aria-label='Shareable summary text' readonly>" +
           guidance.summary +
           "</textarea>";
       }
