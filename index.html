@@ -156,31 +156,47 @@
         }
 
         if (validationErrors.length > 0) {
-          resultEl.innerHTML =
-            "<strong>Please enter a non-negative numeric value for: " +
+          resultEl.textContent = "";
+          const errorEl = document.createElement("strong");
+          errorEl.textContent =
+            "Please enter a non-negative numeric value for: " +
             validationErrors.join(" and ") +
-            ".</strong>";
+            ".";
+          resultEl.appendChild(errorEl);
           return;
         }
 
         const guidance = buildGuidance(baselineValue, increaseValue);
-        resultEl.innerHTML =
-          "<div><strong>Recommended baseline:</strong> " +
-          formatCredits(guidance.newBaseline) +
-          " credits/month</div>" +
-          "<div><strong>Monthly incremental credit:</strong> +" +
-          formatCredits(guidance.monthlyIncrement) +
-          "</div>" +
-          "<div><strong>Annualized incremental credit:</strong> +" +
-          formatCredits(guidance.annualIncrement) +
-          "</div>" +
-          "<div><strong>Approval guidance:</strong> " +
-          guidance.approvalLevel +
-          "</div>" +
-          "<label for='guidanceSummary'><strong>Shareable summary</strong></label>" +
-          "<textarea id='guidanceSummary' aria-label='Shareable summary text' readonly>" +
-          guidance.summary +
-          "</textarea>";
+        resultEl.textContent = "";
+
+        function addResultRow(labelText, valueText) {
+          const rowEl = document.createElement("div");
+          const labelEl = document.createElement("strong");
+          labelEl.textContent = labelText + " ";
+          rowEl.appendChild(labelEl);
+          rowEl.appendChild(document.createTextNode(valueText));
+          resultEl.appendChild(rowEl);
+        }
+
+        addResultRow("Recommended baseline:", formatCredits(guidance.newBaseline) + " credits/month");
+        addResultRow("Monthly incremental credit:", "+" + formatCredits(guidance.monthlyIncrement));
+        addResultRow("Annualized incremental credit:", "+" + formatCredits(guidance.annualIncrement));
+        addResultRow("Approval guidance:", guidance.approvalLevel);
+
+        const summaryLabel = document.createElement("label");
+        summaryLabel.setAttribute("for", "guidanceSummary");
+        const summaryStrong = document.createElement("strong");
+        summaryStrong.textContent = "Shareable summary";
+        summaryLabel.appendChild(summaryStrong);
+
+        const summaryText = document.createElement("textarea");
+        summaryText.id = "guidanceSummary";
+        summaryText.setAttribute("aria-label", "Shareable summary text");
+        summaryText.readOnly = true;
+        summaryText.value = guidance.summary;
+
+        resultEl.appendChild(summaryLabel);
+        resultEl.appendChild(summaryText);
       }
 
       document.getElementById("calculateBtn").addEventListener("click", renderGuidance);
