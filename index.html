@@ -146,17 +146,20 @@
         const increaseRaw = document.getElementById("workloadIncrease").value;
         const baselineValue = Number(baselineRaw);
         const increaseValue = Number(increaseRaw);
+        const validationErrors = [];
 
-        if (
-          baselineRaw.trim() === "" ||
-          increaseRaw.trim() === "" ||
-          Number.isNaN(baselineValue) ||
-          Number.isNaN(increaseValue) ||
-          baselineValue < 0 ||
-          increaseValue < 0
-        ) {
+        if (baselineRaw.trim() === "" || Number.isNaN(baselineValue) || baselineValue < 0) {
+          validationErrors.push("baseline credits");
+        }
+        if (increaseRaw.trim() === "" || Number.isNaN(increaseValue) || increaseValue < 0) {
+          validationErrors.push("workload increase");
+        }
+
+        if (validationErrors.length > 0) {
           resultEl.innerHTML =
-            "<strong>Please enter non-negative numeric values for both fields.</strong>";
+            "<strong>Please enter a non-negative numeric value for: " +
+            validationErrors.join(" and ") +
+            ".</strong>";
           return;
         }
 
