@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HLS Baseline Credit Calculator</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        max-width: 720px;
+      }
+      .card {
+        border: 1px solid #d9d9d9;
+        border-radius: 8px;
+        padding: 1rem;
+      }
+      .field {
+        margin-bottom: 0.75rem;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      input {
+        width: 100%;
+        padding: 0.5rem;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 0.5rem 0.85rem;
+        margin-right: 0.5rem;
+      }
+      .result {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: #f8f8f8;
+        border-radius: 6px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        margin-top: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>HLS Baseline Credit Calculator</h1>
+    <p>
+      Use this calculator to estimate recommended baseline credit adjustments based on workload
+      increase and generate guidance that can be shared internally and with customers.
+    </p>
+
+    <div class="card">
+      <div class="field">
+        <label for="baselineCredits">Current baseline credits (monthly)</label>
+        <input
+          id="baselineCredits"
+          type="number"
+          min="0"
+          step="0.01"
+          value="0"
+          aria-describedby="inputHelp"
+        />
+      </div>
+      <div class="field">
+        <label for="workloadIncrease">Workload increase (%)</label>
+        <input
+          id="workloadIncrease"
+          type="number"
+          min="0"
+          step="0.1"
+          value="0"
+          aria-describedby="inputHelp"
+        />
+      </div>
+      <p id="inputHelp">Enter non-negative numeric values. Decimals are allowed.</p>
+      <button id="calculateBtn" type="button" aria-describedby="buttonHelp">Calculate guidance</button>
+      <button id="resetBtn" type="button" aria-describedby="buttonHelp">Reset</button>
+      <p id="buttonHelp">Calculate updates results below. Reset clears both fields and output.</p>
+
+      <div class="result" id="result" aria-live="polite"></div>
+    </div>
+
+    <script>
+      const STANDARD_APPROVAL_MAX_PERCENT = 10;
+      const MANAGER_FINANCE_APPROVAL_MAX_PERCENT = 25;
+      const MONTHS_PER_YEAR = 12;
+
+      function formatCredits(value) {
+        return Number(value).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      }
+
+      function formatPercent(value) {
+        return Number(value).toFixed(2);
+      }
+
+      function getApprovalLevel(increasePercent) {
+        if (increasePercent <= STANDARD_APPROVAL_MAX_PERCENT) return "Standard approval path";
+        if (increasePercent <= MANAGER_FINANCE_APPROVAL_MAX_PERCENT)
+          return "Manager + finance approval path";
+        return "Leadership + finance approval path";
+      }
+
+      function buildGuidance(currentBaseline, increasePercent) {
+        const monthlyIncrement = currentBaseline * (increasePercent / 100);
+        const newBaseline = currentBaseline + monthlyIncrement;
+        const annualIncrement = monthlyIncrement * MONTHS_PER_YEAR;
+        const approvalLevel = getApprovalLevel(increasePercent);
+
+        return {
+          currentBaseline,
+          increasePercent,
+          monthlyIncrement,
+          newBaseline,
+          annualIncrement,
+          approvalLevel,
+          summary:
+            "Proposed baseline update:\n" +
+            "- Current baseline: " +
+            formatCredits(currentBaseline) +
+            " credits/month\n" +
+            "- Workload increase: " +
+            formatPercent(increasePercent) +
+            "%\n" +
+            "- Recommended baseline: " +
+            formatCredits(newBaseline) +
+            " credits/month\n" +
+            "- Incremental credit: +" +
+            formatCredits(monthlyIncrement) +
+            " credits/month (+" +
+            formatCredits(annualIncrement) +
+            " annually)\n" +
+            "- Internal review guidance: " +
+            approvalLevel
+        };
+      }
+
+      function renderGuidance() {
+        const resultEl = document.getElementById("result");
+        const baselineRaw = document.getElementById("baselineCredits").value;
+        const increaseRaw = document.getElementById("workloadIncrease").value;
+        const baselineValue = Number(baselineRaw);
+        const increaseValue = Number(increaseRaw);
+        const validationErrors = [];
+
+        if (baselineRaw.trim() === "" || Number.isNaN(baselineValue) || baselineValue < 0) {
+          validationErrors.push("baseline credits");
+        }
+        if (increaseRaw.trim() === "" || Number.isNaN(increaseValue) || increaseValue < 0) {
+          validationErrors.push("workload increase");
+        }
+
+        if (validationErrors.length > 0) {
+          resultEl.textContent = "";
+          const errorEl = document.createElement("strong");
+          errorEl.textContent =
+            "Please enter a non-negative numeric value for: " +
+            validationErrors.join(" and ") +
+            ".";
+          resultEl.appendChild(errorEl);
+          return;
+        }
+
+        const guidance = buildGuidance(baselineValue, increaseValue);
+        resultEl.textContent = "";
+
+        function addResultRow(labelText, valueText) {
+          const rowEl = document.createElement("div");
+          const labelEl = document.createElement("strong");
+          labelEl.textContent = labelText + " ";
+          rowEl.appendChild(labelEl);
+          rowEl.appendChild(document.createTextNode(valueText));
+          resultEl.appendChild(rowEl);
+        }
+
+        addResultRow("Recommended baseline:", formatCredits(guidance.newBaseline) + " credits/month");
+        addResultRow("Monthly incremental credit:", "+" + formatCredits(guidance.monthlyIncrement));
+        addResultRow("Annualized incremental credit:", "+" + formatCredits(guidance.annualIncrement));
+        addResultRow("Approval guidance:", guidance.approvalLevel);
+
+        const summaryLabel = document.createElement("label");
+        summaryLabel.setAttribute("for", "guidanceSummary");
+        const summaryStrong = document.createElement("strong");
+        summaryStrong.textContent = "Shareable summary";
+        summaryLabel.appendChild(summaryStrong);
+
+        const summaryText = document.createElement("textarea");
+        summaryText.id = "guidanceSummary";
+        summaryText.setAttribute("aria-label", "Shareable summary text");
+        summaryText.readOnly = true;
+        summaryText.value = guidance.summary;
+
+        resultEl.appendChild(summaryLabel);
+        resultEl.appendChild(summaryText);
+      }
+
+      document.getElementById("calculateBtn").addEventListener("click", renderGuidance);
+      document.getElementById("resetBtn").addEventListener("click", function () {
+        document.getElementById("baselineCredits").value = "0";
+        document.getElementById("workloadIncrease").value = "0";
+        document.getElementById("result").textContent = "";
+      });
+    </script>
+  </body>
+</html>
