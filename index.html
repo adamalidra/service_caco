@@ -84,6 +84,10 @@
     </div>
 
     <script>
+      const STANDARD_APPROVAL_MAX_PERCENT = 10;
+      const MANAGER_FINANCE_APPROVAL_MAX_PERCENT = 25;
+      const MONTHS_PER_YEAR = 12;
+
       function formatCredits(value) {
         return Number(value).toLocaleString(undefined, {
           minimumFractionDigits: 2,
@@ -96,15 +100,16 @@
       }
 
       function getApprovalLevel(increasePercent) {
-        if (increasePercent <= 10) return "Standard approval path";
-        if (increasePercent <= 25) return "Manager + finance approval path";
+        if (increasePercent <= STANDARD_APPROVAL_MAX_PERCENT) return "Standard approval path";
+        if (increasePercent <= MANAGER_FINANCE_APPROVAL_MAX_PERCENT)
+          return "Manager + finance approval path";
         return "Leadership + finance approval path";
       }
 
       function buildGuidance(currentBaseline, increasePercent) {
         const monthlyIncrement = currentBaseline * (increasePercent / 100);
         const newBaseline = currentBaseline + monthlyIncrement;
-        const annualIncrement = monthlyIncrement * 12;
+        const annualIncrement = monthlyIncrement * MONTHS_PER_YEAR;
         const approvalLevel = getApprovalLevel(increasePercent);
 
         return {
