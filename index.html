@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CACO Baseline Credit Calculator</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        max-width: 720px;
+      }
+      .card {
+        border: 1px solid #d9d9d9;
+        border-radius: 8px;
+        padding: 1rem;
+      }
+      .field {
+        margin-bottom: 0.75rem;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      input {
+        width: 100%;
+        padding: 0.5rem;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 0.5rem 0.85rem;
+        margin-right: 0.5rem;
+      }
+      .result {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: #f8f8f8;
+        border-radius: 6px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        margin-top: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>CACO Baseline Credit Calculator</h1>
+    <p>
+      Use this calculator to estimate recommended baseline credit adjustments based on workload
+      increase and generate guidance that can be shared internally and with customers.
+    </p>
+
+    <div class="card">
+      <div class="field">
+        <label for="baselineCredits">Current baseline credits (monthly)</label>
+        <input id="baselineCredits" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="field">
+        <label for="workloadIncrease">Workload increase (%)</label>
+        <input id="workloadIncrease" type="number" min="0" step="0.1" value="0" />
+      </div>
+      <button id="calculateBtn" type="button">Calculate guidance</button>
+      <button id="resetBtn" type="button">Reset</button>
+
+      <div class="result" id="result" aria-live="polite"></div>
+    </div>
+
+    <script>
+      function formatCredits(value) {
+        return Number(value).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      }
+
+      function getApprovalLevel(increasePercent) {
+        if (increasePercent <= 10) return "Standard approval path";
+        if (increasePercent <= 25) return "Manager + finance approval path";
+        return "Leadership + finance approval path";
+      }
+
+      function buildGuidance(currentBaseline, increasePercent) {
+        const monthlyIncrement = currentBaseline * (increasePercent / 100);
+        const newBaseline = currentBaseline + monthlyIncrement;
+        const annualIncrement = monthlyIncrement * 12;
+        const approvalLevel = getApprovalLevel(increasePercent);
+
+        return {
+          currentBaseline,
+          increasePercent,
+          monthlyIncrement,
+          newBaseline,
+          annualIncrement,
+          approvalLevel,
+          summary:
+            "Proposed baseline update:\n" +
+            "- Current baseline: " +
+            formatCredits(currentBaseline) +
+            " credits/month\n" +
+            "- Workload increase: " +
+            formatCredits(increasePercent) +
+            "%\n" +
+            "- Recommended baseline: " +
+            formatCredits(newBaseline) +
+            " credits/month\n" +
+            "- Incremental credit: +" +
+            formatCredits(monthlyIncrement) +
+            " credits/month (+" +
+            formatCredits(annualIncrement) +
+            " annually)\n" +
+            "- Internal review guidance: " +
+            approvalLevel
+        };
+      }
+
+      function renderGuidance() {
+        const resultEl = document.getElementById("result");
+        const baselineValue = Number(document.getElementById("baselineCredits").value);
+        const increaseValue = Number(document.getElementById("workloadIncrease").value);
+
+        if (Number.isNaN(baselineValue) || Number.isNaN(increaseValue) || baselineValue < 0 || increaseValue < 0) {
+          resultEl.innerHTML =
+            "<strong>Please enter non-negative numeric values for both fields.</strong>";
+          return;
+        }
+
+        const guidance = buildGuidance(baselineValue, increaseValue);
+        resultEl.innerHTML =
+          "<div><strong>Recommended baseline:</strong> " +
+          formatCredits(guidance.newBaseline) +
+          " credits/month</div>" +
+          "<div><strong>Monthly incremental credit:</strong> +" +
+          formatCredits(guidance.monthlyIncrement) +
+          "</div>" +
+          "<div><strong>Annualized incremental credit:</strong> +" +
+          formatCredits(guidance.annualIncrement) +
+          "</div>" +
+          "<div><strong>Approval guidance:</strong> " +
+          guidance.approvalLevel +
+          "</div>" +
+          "<label for='guidanceSummary'><strong>Shareable summary</strong></label>" +
+          "<textarea id='guidanceSummary' readonly>" +
+          guidance.summary +
+          "</textarea>";
+      }
+
+      document.getElementById("calculateBtn").addEventListener("click", renderGuidance);
+      document.getElementById("resetBtn").addEventListener("click", function () {
+        document.getElementById("baselineCredits").value = "0";
+        document.getElementById("workloadIncrease").value = "0";
+        document.getElementById("result").innerHTML = "";
+      });
+    </script>
+  </body>
+</html>
