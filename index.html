@@ -705,7 +705,7 @@ function calculate() {
   setText('flow-net',   fmt(net));
   const acdType = $('acd-type').value;
   const acdVal  = numVal('acd-value');
-  const acdPctStr = acdType === 'pct' && acdVal !== null
+  const acdPctStr = acdType === 'pct' && acdVal !== null && acdVal >= 0
     ? acdVal.toFixed(1) + '% of gross'
     : (acdAmt > 0 ? 'Fixed discount' : 'No ACD applied');
   setText('flow-acd-sub', acdPctStr);
@@ -802,9 +802,9 @@ function onMilestoneChange() {
     banner.style.display = 'flex';
     banner.className = 'v-banner v-ok';
     banner.querySelector('.v-icon').textContent = '✅';
-    msg.textContent = 'Configuration is valid. Total ACO ' + fmt(totalAco) +
+    msg.textContent = 'Configuration is valid — Total ACO ' + fmt(totalAco) +
       ' is within the Max ACO Award of ' + fmt(maxAco) +
-      '. Net invoice basis: ' + fmt(net) + '.';
+      ' (net invoice basis: ' + fmt(net) + ').';
   } else {
     banner.style.display = 'none';
   }
