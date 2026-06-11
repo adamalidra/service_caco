@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Specific Conditional ACO Calculator v2</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Design tokens: Azure Accelerate branding ───────────────────────── */
+    :root {
+      --navy:      #0c2340;
+      --blue:      #0078d4;
+      --orange:    #e8a000;
+      --light-blue:#deecf9;
+      --light-gray:#f5f5f5;
+      --green:     #107c10;
+      --red:       #d13438;
+      --text:      #323130;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: var(--text); }
+
+    .header {
+      background: var(--navy);
+      color: #fff;
+      padding: 18px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { font-size: 1.4rem; font-weight: 600; }
+    .header .sub { font-size: 0.8rem; opacity: .65; margin-top: 3px; }
+    .badge {
+      background: var(--orange);
+      color: #fff;
+      padding: 4px 14px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .orange-bar { height: 4px; background: var(--orange); }
+
+    .container { max-width: 1120px; margin: 0 auto; padding: 24px 20px; }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    }
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--light-blue);
+    }
+    .step {
+      background: var(--navy);
+      color: #fff;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 700;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .card-header h2 { font-size: 1.05rem; font-weight: 700; color: var(--navy); }
+    .card-header .hint {
+      font-size: 0.78rem; color: #666; margin-top: 3px;
+    }
+    .card-header .right-hint {
+      margin-left: auto;
+      font-size: 0.78rem; color: #888;
+      white-space: nowrap; padding-top: 4px;
+    }
+
+    .form-row { display: flex; gap: 20px; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
+    .form-group label { font-size: 0.82rem; font-weight: 600; color: #555; }
+    .form-group input, .form-group select {
+      border: 1px solid #ccc; border-radius: 4px;
+      padding: 9px 12px; font-size: 0.95rem; color: var(--text);
+      transition: border-color .18s;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none; border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(0,120,212,.15);
+    }
+    .form-group input.input-error { border-color: var(--red); background: #fff0f0; }
+    .field-note { font-size: 0.72rem; color: #888; }
+    .computed {
+      background: var(--light-gray); border: 1px solid #e0e0e0;
+      border-radius: 4px; padding: 9px 12px;
+      font-size: 0.95rem; font-weight: 600; color: var(--navy);
+    }
+
+    .mode-toggle {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .mode-pill {
+      border: 1.5px solid #c8d9ea;
+      background: #fff;
+      color: var(--navy);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .mode-pill.active {
+      background: var(--navy);
+      color: #fff;
+      border-color: var(--navy);
+    }
+
+    .offer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .offer-card {
+      border: 2px solid #ddd; border-radius: 8px;
+      padding: 14px; text-align: center;
+      cursor: pointer; transition: all .18s; user-select: none;
+    }
+    .offer-card:hover { border-color: var(--blue); background: var(--light-blue); }
+    .offer-card.selected { border-color: var(--navy); background: var(--navy); color: #fff; }
+    .offer-card .o-icon { font-size: 1.5rem; margin-bottom: 4px; }
+    .offer-card .o-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+    .offer-card .o-rate { font-size: 1.5rem; font-weight: 800; color: var(--orange); line-height: 1; }
+    .offer-card .o-roi { font-size: 0.75rem; opacity: .7; margin-top: 2px; }
+    .offer-card.selected .o-roi { opacity: .85; }
+
+    .products-box {
+      margin-top: 12px; padding: 10px 14px;
+      background: var(--light-gray); border-radius: 6px;
+      font-size: 0.8rem; color: #555; line-height: 1.5;
+    }
+    .products-box strong { color: var(--navy); }
+
+    .billing-flow {
+      display: flex; align-items: stretch; gap: 0;
+      margin: 16px 0 20px;
+      border-radius: 8px; overflow: hidden;
+      border: 1px solid #99c4e7;
+    }
+    .bf-node {
+      flex: 1; padding: 12px 14px; text-align: center;
+      background: var(--light-blue);
+    }
+    .bf-node.bf-discount { background: #fde7e9; }
+    .bf-node.bf-net      { background: #dff6dd; }
+    .bf-arrow {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 10px; background: #fff; font-size: 1.3rem;
+      font-weight: 700; color: #555; border-left: 1px solid #ccc;
+      border-right: 1px solid #ccc; flex-shrink: 0;
+    }
+    .bf-lbl { font-size: 0.68rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .5px; }
+    .bf-val { font-size: 1.15rem; font-weight: 800; color: var(--navy); margin: 4px 0; }
+    .bf-val.bf-red { color: var(--red); }
+    .bf-val.bf-green { color: var(--green); }
+    .bf-sub { font-size: 0.68rem; color: #777; }
+
+    .acd-input-wrap { display: flex; gap: 6px; align-items: center; }
+    .acd-input-wrap select {
+      flex-shrink: 0; width: 56px;
+      border: 1px solid #ccc; border-radius: 4px;
+      padding: 9px 6px; font-size: 0.9rem; color: var(--text);
+      background: #fff; cursor: pointer;
+    }
+    .acd-input-wrap select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(0,120,212,.15); }
+    .acd-input-wrap input { flex: 1; }
+
+    .spend-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-top: 4px;
+    }
+    .spend-box { border-radius: 8px; padding: 14px; text-align: center; }
+    .spend-box.b-baseline  { background: #dff6dd; border: 1px solid #92d050; }
+    .spend-box.b-target    { background: var(--light-blue); border: 1px solid #99c4e7; }
+    .spend-box.b-incr      { background: #f0f2f5; border: 1px solid #ddd; }
+    .spend-box.b-maxaco    { background: #fff4cc; border: 1px solid var(--orange); }
+    .spend-box .s-lbl { font-size: 0.7rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .5px; }
+    .spend-box .s-val { font-size: 1.35rem; font-weight: 800; color: var(--navy); margin: 4px 0; }
+    .spend-box .s-sub { font-size: 0.7rem; color: #777; }
+
+    .ms-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+    }
+    .ms-toolbar p { font-size: 0.82rem; color: #666; }
+    .btn {
+      padding: 8px 16px; border-radius: 4px; border: none;
+      cursor: pointer; font-size: 0.85rem; font-weight: 600;
+      transition: all .18s;
+    }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:hover { background: #005a9e; }
+    .btn-outline { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
+    .btn-outline:hover { background: var(--light-blue); }
+    .btn-ghost { background: var(--light-gray); color: #555; border: 1px solid #ddd; }
+    .btn-ghost:hover { background: #e8e8e8; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    thead th {
+      background: var(--navy); color: #fff;
+      padding: 10px 12px; text-align: left;
+      font-size: 0.8rem; font-weight: 600;
+    }
+    thead th:first-child { border-radius: 6px 0 0 0; }
+    thead th:last-child  { border-radius: 0 6px 0 0; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+    tbody td input[type="number"] {
+      width: 100%; border: 1px solid #ccc; border-radius: 4px;
+      padding: 6px 9px; font-size: 0.88rem;
+    }
+    tbody td input[type="number"]:focus {
+      outline: none; border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(0,120,212,.12);
+    }
+    tbody td input.input-error { border-color: var(--red); background: #fff0f0; }
+    tfoot td {
+      padding: 10px 12px; font-weight: 700;
+      background: var(--light-gray); border-top: 2px solid #ddd;
+    }
+    .ms-lbl { font-weight: 700; color: var(--navy); }
+    .ms-lbl.baseline-row { color: #888; }
+
+    .share-wrap { display: flex; align-items: center; gap: 6px; }
+    .share-track {
+      flex: 1; height: 8px; background: #e8e8e8; border-radius: 4px; overflow: hidden;
+    }
+    .share-fill { height: 100%; background: var(--orange); border-radius: 4px; transition: width .3s; }
+    .share-pct { font-size: 0.8rem; color: #555; min-width: 32px; text-align: right; }
+
+    .total-ok   { color: var(--green); }
+    .total-over { color: var(--red); }
+
+    .v-banner {
+      display: none; align-items: flex-start; gap: 10px;
+      padding: 11px 16px; border-radius: 6px; margin-top: 14px;
+      font-size: 0.86rem; font-weight: 500; line-height: 1.4;
+    }
+    .v-banner.v-ok  { background: #dff6dd; color: var(--green); border: 1px solid #92d050; }
+    .v-banner.v-err { background: #fde7e9; color: var(--red);   border: 1px solid #f4b8bb; }
+    .v-banner .v-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .summary-table { width: 100%; border-collapse: collapse; }
+    .summary-table td { padding: 7px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+    .summary-table td:last-child { text-align: right; font-weight: 600; color: var(--navy); }
+    .summary-highlight {
+      background: var(--navy); color: #fff;
+      border-radius: 6px; padding: 12px 16px;
+      margin-top: 10px; text-align: center;
+      font-size: 1.05rem; font-weight: 700;
+    }
+    .summary-highlight span { color: var(--orange); }
+
+    .chart-wrap { position: relative; height: 260px; }
+    .review-section { margin-top: 24px; }
+    .review-section h3 { font-size: 0.85rem; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+    .action-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+
+    .footer {
+      background: var(--navy); color: rgba(255,255,255,.6);
+      text-align: center; padding: 14px;
+      font-size: 0.78rem; margin-top: 24px;
+    }
+
+    @media (max-width: 760px) {
+      .offer-grid    { grid-template-columns: 1fr 1fr; }
+      .spend-grid    { grid-template-columns: 1fr 1fr; }
+      .results-grid  { grid-template-columns: 1fr; }
+      .header        { flex-direction: column; gap: 10px; padding: 16px 20px; }
+      .container     { padding: 14px; }
+      .billing-flow  { flex-direction: column; }
+      .bf-arrow      { padding: 4px 0; border-left: none; border-right: none; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .action-bar { display: none; }
+      .header, .offer-card.selected, .spend-box, tfoot td, .summary-highlight {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .card { box-shadow: none; border: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>Service Specific Conditional ACO Calculator <span style="font-size:.85rem;opacity:.7;font-weight:400;">v2</span></h1>
+    <div class="sub">Azure Accelerate · GA May 26, 2026 · Includes seller-configured target option and Azure Commitment Discount (ACD) flow</div>
+  </div>
+  <span class="badge">Azure Accelerate</span>
+</div>
+<div class="orange-bar"></div>
+
+<div class="container">
+  <div class="card">
+    <div class="card-header">
+      <div class="step">1</div>
+      <div>
+        <h2>Select Offer Type</h2>
+        <div class="hint">Choose the workload category that matches the customer's eligible products.</div>
+      </div>
+    </div>
+
+    <div class="offer-grid">
+      <div class="offer-card selected" id="offer-databases" onclick="selectOffer('databases')">
+        <div class="o-icon">🗄️</div>
+        <div class="o-name">Databases</div>
+        <div class="o-rate">50%</div>
+        <div class="o-roi">ACO Rate · 2x ROI</div>
+      </div>
+      <div class="offer-card" id="offer-fabric" onclick="selectOffer('fabric')">
+        <div class="o-icon">📊</div>
+        <div class="o-name">Fabric</div>
+        <div class="o-rate">33.33%</div>
+        <div class="o-roi">ACO Rate · 3x ROI</div>
+      </div>
+      <div class="offer-card" id="offer-agents" onclick="selectOffer('agents')">
+        <div class="o-icon">🤖</div>
+        <div class="o-name">Agents</div>
+        <div class="o-rate">33.33%</div>
+        <div class="o-roi">ACO Rate · 3x ROI</div>
+      </div>
+      <div class="offer-card" id="offer-modernization" onclick="selectOffer('modernization')">
+        <div class="o-icon">⚙️</div>
+        <div class="o-name">Modernization</div>
+        <div class="o-rate">33.33%</div>
+        <div class="o-roi">ACO Rate · 3x ROI</div>
+      </div>
+    </div>
+
+    <div class="products-box">
+      <strong>Eligible Products — </strong>
+      <span id="products-list"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="step">2</div>
+      <div>
+        <h2>Configure Gross Consumption &amp; Discount</h2>
+        <div class="hint">Enter the customer's gross Azure consumption, optionally apply Azure Commitment Discount, and choose whether the spend target should be auto-calculated or seller-configured.</div>
+        <div class="mode-toggle">
+          <button type="button" class="mode-pill active" id="mode-auto" onclick="setTargetMode('auto')">Auto target (1.20× / $20K minimum)</button>
+          <button type="button" class="mode-pill" id="mode-manual" onclick="setTargetMode('manual')">Seller-configured target</button>
+        </div>
+      </div>
+      <div class="right-hint">Shared rules: 20% min. growth floor · $20K min. spend · 1-year duration</div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="baseline">Gross Consumption (USD)</label>
+        <input type="number" id="baseline" placeholder="e.g. 50000" min="0" step="1000" oninput="calculate()">
+        <div class="field-note">Customer's total annual Azure spend on the selected workload before any discounts</div>
+      </div>
+      <div class="form-group">
+        <label for="acd-value">Azure Commitment Discount (ACD)</label>
+        <div class="acd-input-wrap">
+          <select id="acd-type" onchange="calculate()">
+            <option value="pct">%</option>
+            <option value="amt">$</option>
+          </select>
+          <input type="number" id="acd-value" placeholder="e.g. 10" min="0" step="0.1" oninput="calculate()">
+        </div>
+        <div class="field-note">Negotiated Azure Commitment Discount — reduces gross consumption to a net invoice. Leave blank or 0 if no ACD applies.</div>
+      </div>
+      <div class="form-group">
+        <label for="target-input">Final Spend Target (USD)</label>
+        <input type="number" id="target-input" placeholder="Auto-calculated from net invoice" min="0" step="500" oninput="calculate()" disabled>
+        <div class="field-note" id="target-note">Auto mode uses max(net invoice × 1.20, $20K).</div>
+      </div>
+      <div class="form-group">
+        <label>ACO Rate</label>
+        <div class="computed" id="aco-rate-display">—</div>
+        <div class="field-note">Determined by the selected offer type</div>
+      </div>
+    </div>
+
+    <div class="billing-flow">
+      <div class="bf-node">
+        <div class="bf-lbl">① Gross Consumption</div>
+        <div class="bf-val" id="flow-gross">—</div>
+        <div class="bf-sub">Before ACD</div>
+      </div>
+      <div class="bf-arrow">−</div>
+      <div class="bf-node bf-discount">
+        <div class="bf-lbl">② ACD</div>
+        <div class="bf-val bf-red" id="flow-acd">—</div>
+        <div class="bf-sub" id="flow-acd-sub">Azure Commitment Discount</div>
+      </div>
+      <div class="bf-arrow">=</div>
+      <div class="bf-node bf-net">
+        <div class="bf-lbl">③ Net Invoice</div>
+        <div class="bf-val bf-green" id="flow-net">—</div>
+        <div class="bf-sub">Billing baseline for ACO</div>
+      </div>
+    </div>
+
+    <div class="spend-grid">
+      <div class="spend-box b-baseline">
+        <div class="s-lbl">Net Invoice Baseline</div>
+        <div class="s-val" id="sum-baseline">—</div>
+        <div class="s-sub">Gross − ACD</div>
+      </div>
+      <div class="spend-box b-target">
+        <div class="s-lbl">Spend Target</div>
+        <div class="s-val" id="sum-target">—</div>
+        <div class="s-sub" id="sum-target-sub">max(net × 1.20, $20K)</div>
+      </div>
+      <div class="spend-box b-incr">
+        <div class="s-lbl">Incremental Spend</div>
+        <div class="s-val" id="sum-incr">—</div>
+        <div class="s-sub">Target − Net Invoice</div>
+      </div>
+      <div class="spend-box b-maxaco">
+        <div class="s-lbl">Max ACO Award</div>
+        <div class="s-val" id="sum-maxaco">—</div>
+        <div class="s-sub" id="sum-maxaco-sub">Incremental × ACO rate</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="step">3</div>
+      <div>
+        <h2>Configure Milestones</h2>
+        <div class="hint">Set target spend and ACO for each of the 4 milestones. Milestone attainment is based on the final configured target and the post-ACD net invoice baseline.</div>
+      </div>
+      <div class="right-hint">4 milestones · Flexible timeline</div>
+    </div>
+
+    <div class="ms-toolbar">
+      <p>Total ACO across all milestones must not exceed the Max ACO Award. Final milestone should land at or above the active spend target.</p>
+      <button class="btn btn-outline" onclick="autoDistribute()">⚡ Auto-distribute evenly</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:90px;">Milestone</th>
+          <th>Target Spend ($)</th>
+          <th>ACO Awarded ($)</th>
+          <th style="width:160px;">Share of Total</th>
+          <th>Cumulative Spend</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="ms-lbl baseline-row">Baseline</td>
+          <td><div class="computed" id="m0-spend" style="padding:6px 9px;font-size:.88rem;">—</div></td>
+          <td><div class="computed" style="padding:6px 9px;font-size:.88rem;">$0</div></td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="ms-lbl">M1</td>
+          <td><input type="number" id="m1-spend" placeholder="Target spend" min="0" step="500" oninput="onMilestoneChange()"></td>
+          <td><input type="number" id="m1-aco" placeholder="ACO amount" min="0" step="100" oninput="onMilestoneChange()"></td>
+          <td><div class="share-wrap"><div class="share-track"><div class="share-fill" id="m1-fill" style="width:0%"></div></div><span class="share-pct" id="m1-pct">—</span></div></td>
+          <td id="m1-cumul" style="font-size:.85rem;color:#555;">—</td>
+        </tr>
+        <tr>
+          <td class="ms-lbl">M2</td>
+          <td><input type="number" id="m2-spend" placeholder="Target spend" min="0" step="500" oninput="onMilestoneChange()"></td>
+          <td><input type="number" id="m2-aco" placeholder="ACO amount" min="0" step="100" oninput="onMilestoneChange()"></td>
+          <td><div class="share-wrap"><div class="share-track"><div class="share-fill" id="m2-fill" style="width:0%"></div></div><span class="share-pct" id="m2-pct">—</span></div></td>
+          <td id="m2-cumul" style="font-size:.85rem;color:#555;">—</td>
+        </tr>
+        <tr>
+          <td class="ms-lbl">M3</td>
+          <td><input type="number" id="m3-spend" placeholder="Target spend" min="0" step="500" oninput="onMilestoneChange()"></td>
+          <td><input type="number" id="m3-aco" placeholder="ACO amount" min="0" step="100" oninput="onMilestoneChange()"></td>
+          <td><div class="share-wrap"><div class="share-track"><div class="share-fill" id="m3-fill" style="width:0%"></div></div><span class="share-pct" id="m3-pct">—</span></div></td>
+          <td id="m3-cumul" style="font-size:.85rem;color:#555;">—</td>
+        </tr>
+        <tr>
+          <td class="ms-lbl">M4</td>
+          <td><input type="number" id="m4-spend" placeholder="Target spend" min="0" step="500" oninput="onMilestoneChange()"></td>
+          <td><input type="number" id="m4-aco" placeholder="ACO amount" min="0" step="100" oninput="onMilestoneChange()"></td>
+          <td><div class="share-wrap"><div class="share-track"><div class="share-fill" id="m4-fill" style="width:0%"></div></div><span class="share-pct" id="m4-pct">—</span></div></td>
+          <td id="m4-cumul" style="font-size:.85rem;color:#555;">—</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Totals</td>
+          <td id="foot-target">—</td>
+          <td id="foot-aco">—</td>
+          <td id="foot-pct">—</td>
+          <td>—</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="v-banner" id="v-banner">
+      <span class="v-icon"></span>
+      <div id="v-msg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="step">4</div>
+      <div>
+        <h2>Results Summary</h2>
+        <div class="hint">For internal and external review. Values reflect the gross → ACD → net invoice flow with either auto or seller-configured final target.</div>
+      </div>
+    </div>
+
+    <div class="results-grid">
+      <div>
+        <table class="summary-table">
+          <tr><td>Offer Type</td><td id="res-offer">—</td></tr>
+          <tr><td>ACO Rate</td><td id="res-rate">—</td></tr>
+          <tr><td>Target Mode</td><td id="res-mode">—</td></tr>
+          <tr style="border-top:1px solid #ddd;"><td>① Gross Consumption</td><td id="res-gross">—</td></tr>
+          <tr><td>② Azure Commitment Discount (ACD)</td><td id="res-acd" style="color:var(--red);">—</td></tr>
+          <tr><td>③ Net Invoice (Billing Baseline)</td><td id="res-net" style="color:var(--green);font-weight:700;">—</td></tr>
+          <tr style="border-top:1px solid #ddd;"><td>Spend Target</td><td id="res-target">—</td></tr>
+          <tr><td>Incremental Spend</td><td id="res-incr">—</td></tr>
+          <tr><td>Max ACO Award</td><td id="res-maxaco">—</td></tr>
+        </table>
+        <div class="summary-highlight">Total ACO Award: <span id="res-total">—</span></div>
+      </div>
+      <div>
+        <div class="chart-wrap"><canvas id="milestoneChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="review-section">
+      <h3>Milestone Breakdown <span style="font-weight:400;color:#888;font-size:.8rem;">(seller-configured examples supported)</span></h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Milestone</th>
+            <th>Target Spend</th>
+            <th>Incremental at Milestone</th>
+            <th>ACO Awarded</th>
+            <th>Share of ACO</th>
+          </tr>
+        </thead>
+        <tbody id="review-tbody">
+          <tr><td colspan="5" style="text-align:center;color:#888;padding:20px 0;">Enter a baseline spend and configure milestones to see results.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn btn-ghost" onclick="resetAll()">🔄 Reset</button>
+    <button class="btn btn-primary" onclick="window.print()">🖨️ Print / Export PDF</button>
+  </div>
+</div>
+
+<div class="footer">
+  Service Specific Conditional ACO v2 · Azure Accelerate · GA May 26, 2026 | Supports seller-configured examples and ACD flow
+</div>
+
+<script>
+const OFFERS = {
+  databases: {
+    name: 'Databases',
+    rate: 0.5,
+    rateLabel: '50%',
+    roi: '2x ROI',
+    products: 'Azure Cosmos DB, Azure DB for MariaDB, Azure DB for MySQL, Azure DB for PostgreSQL, DB Migration Service, Managed Inst. for Cassandra, Azure SQL Edge, Hybrid Data Services',
+    coverage: 'RIs included'
+  },
+  fabric: {
+    name: 'Fabric',
+    rate: 1 / 3,
+    rateLabel: '33.33%',
+    roi: '3x ROI',
+    products: 'Microsoft Fabric',
+    coverage: 'RIs included'
+  },
+  agents: {
+    name: 'Agents',
+    rate: 1 / 3,
+    rateLabel: '33.33%',
+    roi: '3x ROI',
+    products: 'Foundry Models, Foundry Tools, GitHub, Microsoft Copilot Studio',
+    coverage: 'RIs + Pre-Purchase Plans'
+  },
+  modernization: {
+    name: 'Modernization',
+    rate: 1 / 3,
+    rateLabel: '33.33%',
+    roi: '3x ROI',
+    products: 'Azure App Service, Azure Container Apps, Azure Kubernetes Services, Container Instances, Container Registry, Virtual Machines, Virtual Machine Licenses',
+    coverage: 'Reservations + Savings Plans'
+  }
+};
+
+const MIN_GROWTH = 0.20;
+const MIN_SPEND = 20000;
+
+let currentOffer = 'databases';
+let chart = null;
+let targetMode = 'auto';
+
+const $ = id => document.getElementById(id);
+const numVal = id => {
+  const v = parseFloat($(id).value);
+  return isNaN(v) ? null : v;
+};
+const setText = (id, t) => {
+  const el = $(id);
+  if (el) el.textContent = t;
+};
+const fmt = n => (n == null || isNaN(n)) ? '—' : '$' + Math.round(n).toLocaleString('en-US');
+
+function getAcdAmount(gross) {
+  const acdType = $('acd-type').value;
+  const acdVal = numVal('acd-value');
+  if (acdVal === null || acdVal < 0) return 0;
+  if (acdType === 'pct') return gross * (acdVal / 100);
+  return acdVal;
+}
+
+function setTargetMode(mode) {
+  targetMode = mode;
+  $('mode-auto').classList.toggle('active', mode === 'auto');
+  $('mode-manual').classList.toggle('active', mode === 'manual');
+  $('target-input').disabled = mode !== 'manual';
+  $('target-note').textContent = mode === 'manual'
+    ? 'Seller-configured final spend target. Must be at least the net invoice baseline and should respect program guardrails.'
+    : 'Auto mode uses max(net invoice × 1.20, $20K).';
+  calculate();
+}
+
+function resolveScenario(gross) {
+  const acdAmt = getAcdAmount(gross);
+  const net = Math.max(0, gross - acdAmt);
+  const minTarget = Math.max(net * (1 + MIN_GROWTH), MIN_SPEND);
+  const manualTarget = numVal('target-input');
+  const target = targetMode === 'manual' && manualTarget !== null ? manualTarget : minTarget;
+  const incr = Math.max(0, target - net);
+  const offer = OFFERS[currentOffer];
+  const maxAco = incr * offer.rate;
+  return { acdAmt, net, minTarget, manualTarget, target, incr, maxAco, offer };
+}
+
+function selectOffer(key) {
+  currentOffer = key;
+  document.querySelectorAll('.offer-card').forEach(c => c.classList.remove('selected'));
+  $('offer-' + key).classList.add('selected');
+  const o = OFFERS[key];
+  $('aco-rate-display').textContent = o.rateLabel + ' · ' + o.roi + ' · ' + o.coverage;
+  $('products-list').textContent = o.products;
+  calculate();
+}
+
+function calculate() {
+  const gross = numVal('baseline');
+  const o = OFFERS[currentOffer];
+  $('aco-rate-display').textContent = o.rateLabel + ' · ' + o.roi + ' · ' + o.coverage;
+
+  if (gross === null || gross < 0) {
+    ['sum-baseline','sum-target','sum-incr','sum-maxaco','flow-gross','flow-acd','flow-net','m0-spend'].forEach(id => setText(id, '—'));
+    setText('sum-target-sub', targetMode === 'manual' ? 'Seller-configured final target' : 'max(net × 1.20, $20K)');
+    return;
+  }
+
+  const { acdAmt, net, minTarget, target, incr, maxAco } = resolveScenario(gross);
+  const acdType = $('acd-type').value;
+  const acdVal = numVal('acd-value');
+  const acdPctStr = acdType === 'pct' && acdVal !== null && acdVal >= 0
+    ? acdVal.toFixed(1) + '% of gross'
+    : (acdAmt > 0 ? 'Fixed discount' : 'No ACD applied');
+
+  setText('flow-gross', fmt(gross));
+  setText('flow-acd', fmt(acdAmt));
+  setText('flow-net', fmt(net));
+  setText('flow-acd-sub', acdPctStr);
+  setText('sum-baseline', fmt(net));
+  setText('sum-target', fmt(target));
+  setText('sum-incr', fmt(incr));
+  setText('sum-maxaco', fmt(maxAco));
+  setText('m0-spend', fmt(net));
+  setText('sum-target-sub', targetMode === 'manual'
+    ? 'Seller-configured final target'
+    : (target === MIN_SPEND && minTarget === MIN_SPEND ? '$20K minimum floor applied' : 'Net Invoice × 1.20'));
+
+  onMilestoneChange();
+}
+
+function onMilestoneChange() {
+  const gross = numVal('baseline');
+  if (gross === null || gross < 0) return;
+
+  const { acdAmt, net, minTarget, target, incr, maxAco, offer } = resolveScenario(gross);
+  let totalAco = 0;
+  let errors = [];
+  let prevSpend = net;
+
+  if (targetMode === 'manual') {
+    const targetInput = $('target-input');
+    targetInput.classList.remove('input-error');
+    if (target < net) {
+      targetInput.classList.add('input-error');
+      errors.push('Final spend target must be at least the net invoice baseline (' + fmt(net) + ').');
+    }
+    if (target < minTarget - 0.01) {
+      targetInput.classList.add('input-error');
+      errors.push('Seller-configured target is below the standard program floor of ' + fmt(minTarget) + '.');
+    }
+  }
+
+  for (let i = 1; i <= 4; i++) {
+    const spendEl = $('m' + i + '-spend');
+    const acoEl = $('m' + i + '-aco');
+    const mSpend = numVal('m' + i + '-spend');
+    const mAco = numVal('m' + i + '-aco');
+
+    spendEl.classList.remove('input-error');
+    acoEl.classList.remove('input-error');
+
+    if (mSpend !== null) {
+      if (mSpend <= prevSpend) {
+        spendEl.classList.add('input-error');
+        const prev = i === 1 ? 'baseline' : 'M' + (i - 1);
+        errors.push('M' + i + ' target spend must exceed ' + prev + '.');
+      }
+      if (i === 4 && mSpend < target - 0.01) {
+        spendEl.classList.add('input-error');
+        errors.push('M4 target spend should reach the final spend target (' + fmt(target) + ').');
+      }
+      prevSpend = mSpend;
+    }
+
+    if (mAco !== null) {
+      if (mAco < 0) {
+        acoEl.classList.add('input-error');
+        errors.push('M' + i + ' ACO amount cannot be negative.');
+      } else {
+        totalAco += mAco;
+      }
+    }
+
+    const share = maxAco > 0 && mAco !== null ? mAco / maxAco : 0;
+    $('m' + i + '-fill').style.width = Math.min(share * 100, 100) + '%';
+    setText('m' + i + '-pct', mAco !== null ? Math.round(share * 100) + '%' : '—');
+    setText('m' + i + '-cumul', mSpend !== null ? fmt(mSpend) : '—');
+  }
+
+  const footAco = $('foot-aco');
+  footAco.textContent = fmt(totalAco);
+  if (totalAco > maxAco + 0.01) {
+    footAco.className = 'total-over';
+    errors.push('Total ACO (' + fmt(totalAco) + ') exceeds the Max ACO Award (' + fmt(maxAco) + ').');
+  } else {
+    footAco.className = 'total-ok';
+  }
+  setText('foot-target', fmt(target));
+  setText('foot-pct', maxAco > 0 ? Math.round(totalAco / maxAco * 100) + '% of max' : '—');
+
+  const banner = $('v-banner');
+  const msg = $('v-msg');
+  if (errors.length > 0) {
+    banner.style.display = 'flex';
+    banner.className = 'v-banner v-err';
+    banner.querySelector('.v-icon').textContent = '⚠️';
+    msg.innerHTML = errors.map(e => '<div>• ' + e + '</div>').join('');
+  } else if (totalAco > 0) {
+    banner.style.display = 'flex';
+    banner.className = 'v-banner v-ok';
+    banner.querySelector('.v-icon').textContent = '✅';
+    msg.textContent = 'Configuration is valid — Total ACO ' + fmt(totalAco) + ' is within the Max ACO Award of ' + fmt(maxAco) + ' (' + (targetMode === 'manual' ? 'seller-configured target' : 'auto target') + ').';
+  } else {
+    banner.style.display = 'none';
+  }
+
+  updateResults(gross, acdAmt, net, target, incr, maxAco, totalAco, offer);
+  updateChart();
+}
+
+function updateResults(gross, acdAmt, net, target, incr, maxAco, totalAco, offer) {
+  setText('res-offer', offer.name);
+  setText('res-rate', offer.rateLabel + ' · ' + offer.roi);
+  setText('res-mode', targetMode === 'manual' ? 'Seller-configured target' : 'Auto target');
+  setText('res-gross', fmt(gross));
+  setText('res-acd', acdAmt > 0 ? '−' + fmt(acdAmt) : '$0 (no ACD)');
+  setText('res-net', fmt(net));
+  setText('res-target', fmt(target));
+  setText('res-incr', fmt(incr));
+  setText('res-maxaco', fmt(maxAco));
+  setText('res-total', fmt(totalAco));
+
+  const rows = [];
+  let prevSpend = net;
+  for (let i = 1; i <= 4; i++) {
+    const mSpend = numVal('m' + i + '-spend');
+    const mAco = numVal('m' + i + '-aco');
+    const mIncr = mSpend !== null ? mSpend - prevSpend : null;
+    const share = totalAco > 0 && mAco !== null ? (mAco / totalAco * 100).toFixed(0) + '%' : '—';
+
+    rows.push(
+      '<tr>' +
+      '<td style="font-weight:700;color:var(--navy);">M' + i + '</td>' +
+      '<td>' + (mSpend !== null ? fmt(mSpend) : '—') + '</td>' +
+      '<td>' + (mIncr !== null ? fmt(mIncr) : '—') + '</td>' +
+      '<td style="font-weight:700;color:var(--orange);">' + (mAco !== null ? fmt(mAco) : '—') + '</td>' +
+      '<td>' + share + '</td>' +
+      '</tr>'
+    );
+
+    if (mSpend !== null) prevSpend = mSpend;
+  }
+
+  rows.push(
+    '<tr style="background:var(--light-gray);font-weight:700;">' +
+    '<td>Total</td>' +
+    '<td>' + fmt(target) + '</td>' +
+    '<td>' + fmt(incr) + '</td>' +
+    '<td style="color:var(--orange);">' + fmt(totalAco) + '</td>' +
+    '<td>100%</td>' +
+    '</tr>'
+  );
+
+  $('review-tbody').innerHTML = rows.join('');
+}
+
+function updateChart() {
+  const data = [1, 2, 3, 4].map(i => numVal('m' + i + '-aco') || 0);
+  if (!chart) {
+    chart = new Chart($('milestoneChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['M1', 'M2', 'M3', 'M4'],
+        datasets: [{
+          label: 'ACO Awarded',
+          data,
+          backgroundColor: '#e8a000',
+          borderRadius: 5,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => '$' + ctx.raw.toLocaleString('en-US') } }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: v => '$' + v.toLocaleString('en-US') }, grid: { color: '#f0f0f0' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  } else {
+    chart.data.datasets[0].data = data;
+    chart.update('none');
+  }
+}
+
+function autoDistribute() {
+  const gross = numVal('baseline');
+  if (gross === null || gross < 0) {
+    alert('Please enter a gross consumption value first.');
+    return;
+  }
+
+  const { net, incr, maxAco, target } = resolveScenario(gross);
+  const step = incr / 4;
+  const acoStep = maxAco / 4;
+
+  for (let i = 1; i <= 4; i++) {
+    const spendValue = i === 4 ? target : Math.round(net + step * i);
+    $('m' + i + '-spend').value = spendValue;
+    $('m' + i + '-aco').value = +(acoStep).toFixed(2);
+  }
+
+  onMilestoneChange();
+}
+
+function resetAll() {
+  $('baseline').value = '';
+  $('acd-value').value = '';
+  $('acd-type').value = 'pct';
+  $('target-input').value = '';
+  setTargetMode('auto');
+  for (let i = 1; i <= 4; i++) {
+    $('m' + i + '-spend').value = '';
+    $('m' + i + '-aco').value = '';
+  }
+  calculate();
+  if (chart) {
+    chart.data.datasets[0].data = [0, 0, 0, 0];
+    chart.update('none');
+  }
+}
+
+selectOffer('databases');
+</script>
+</body>
+</html>
