@@ -19,6 +19,7 @@ The original calculator. Uses a direct baseline spend as the starting point.
 - Choose auto target (1.20× baseline, $20K minimum) or seller-configured target
 - Plan 4 milestones with target spend and ACO amounts
 - Validates against program floor and milestone ordering rules
+- Enforces per-milestone ACO cap: each milestone cannot exceed the selected category ACO rate of the Max ACO Award
 
 ### v2 (`index-v2.html`)
 Adds Azure Commitment Discount (ACD) support. The ACO math is based on the net invoice after ACD is deducted from gross consumption.
@@ -26,6 +27,7 @@ Adds Azure Commitment Discount (ACD) support. The ACO math is based on the net i
 - Net invoice = gross − ACD becomes the billing baseline for ACO
 - Auto or seller-configured target mode
 - Same 4-milestone planning table with ACD-aware baseline
+- Enforces per-milestone ACO cap: each milestone cannot exceed the selected category ACO rate of the Max ACO Award
 
 ## Usage
 
