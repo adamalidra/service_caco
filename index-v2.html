@@ -445,7 +445,7 @@
     </div>
 
     <div class="ms-toolbar">
-      <p>Total ACO across all milestones must not exceed the Max ACO Award. Final milestone should land at or above the active spend target.</p>
+      <p>Total ACO across all milestones must not exceed the Max ACO Award. Each milestone ACO is capped at the selected category rate × Max ACO Award. Final milestone should land at or above the active spend target.</p>
       <button class="btn btn-outline" onclick="autoDistribute()">⚡ Auto-distribute evenly</button>
     </div>
 
@@ -705,6 +705,7 @@ function onMilestoneChange() {
   if (gross === null || gross < 0) return;
 
   const { acdAmt, net, minTarget, target, incr, maxAco, offer } = resolveScenario(gross);
+  const milestoneAcoCap = maxAco * offer.rate;
   let totalAco = 0;
   let errors = [];
   let prevSpend = net;
@@ -748,11 +749,18 @@ function onMilestoneChange() {
       if (mAco < 0) {
         acoEl.classList.add('input-error');
         errors.push('M' + i + ' ACO amount cannot be negative.');
+      } else if (mAco > milestoneAcoCap + 0.01) {
+        acoEl.classList.add('input-error');
+        errors.push(
+          'M' + i + ' ACO amount (' + fmt(mAco) + ') exceeds the per-milestone cap of ' + fmt(milestoneAcoCap) +
+          ' (' + offer.rateLabel + ' of Max ACO Award).'
+        );
       } else {
         totalAco += mAco;
       }
     }
 
+    acoEl.max = milestoneAcoCap > 0 ? milestoneAcoCap.toFixed(2) : '0';
     const share = maxAco > 0 && mAco !== null ? mAco / maxAco : 0;
     $('m' + i + '-fill').style.width = Math.min(share * 100, 100) + '%';
     setText('m' + i + '-pct', mAco !== null ? Math.round(share * 100) + '%' : '—');
