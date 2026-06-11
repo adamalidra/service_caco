@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Service Specific Conditional ACO Calculator</title>
+  <title>Service Specific Conditional ACO Calculator v2 (with ACD)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     /* ── Design tokens: Azure Accelerate branding ───────────────────────── */
@@ -16,6 +16,7 @@
       --green:     #107c10;
       --red:       #d13438;
       --text:      #323130;
+      --teal:      #008272;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: var(--text); }
@@ -40,7 +41,44 @@
       font-weight: 700;
       white-space: nowrap;
     }
+    .badge-v2 {
+      background: var(--teal);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .header-badges { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .orange-bar { height: 4px; background: var(--orange); }
+
+    /* ── Version nav banner ──────────────────────────────────────────────── */
+    .version-nav {
+      background: #e8f4fd;
+      border-bottom: 1px solid #b3d7f5;
+      padding: 8px 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.82rem;
+      color: #555;
+    }
+    .version-nav a {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .version-nav a:hover { text-decoration: underline; }
+    .v-tag {
+      display: inline-block;
+      background: var(--teal);
+      color: #fff;
+      padding: 1px 7px;
+      border-radius: 3px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
 
     /* ── Layout ──────────────────────────────────────────────────────────── */
     .container { max-width: 1120px; margin: 0 auto; padding: 24px 20px; }
@@ -71,9 +109,7 @@
       flex-shrink: 0; margin-top: 1px;
     }
     .card-header h2 { font-size: 1.05rem; font-weight: 700; color: var(--navy); }
-    .card-header .hint {
-      font-size: 0.78rem; color: #666; margin-top: 3px;
-    }
+    .card-header .hint { font-size: 0.78rem; color: #666; margin-top: 3px; }
     .card-header .right-hint {
       margin-left: auto;
       font-size: 0.78rem; color: #888;
@@ -123,19 +159,96 @@
     }
     .products-box strong { color: var(--navy); }
 
-    /* ── Spend summary ───────────────────────────────────────────────────── */
-    .spend-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-      margin-top: 20px;
+    /* ── ACD callout box ─────────────────────────────────────────────────── */
+    .acd-info {
+      background: #e6f4f1;
+      border: 1px solid #a0d4cb;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-top: 16px;
+      font-size: 0.82rem;
+      color: #2c5f5a;
+      line-height: 1.5;
     }
-    .spend-box { border-radius: 8px; padding: 14px; text-align: center; }
-    .spend-box.b-baseline  { background: #f0f2f5; border: 1px solid #ddd; }
-    .spend-box.b-target    { background: #dff6dd; border: 1px solid #92d050; }
-    .spend-box.b-incr      { background: var(--light-blue); border: 1px solid #99c4e7; }
-    .spend-box.b-maxaco    { background: #fff4cc; border: 1px solid var(--orange); }
-    .spend-box .s-lbl { font-size: 0.7rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .5px; }
-    .spend-box .s-val { font-size: 1.35rem; font-weight: 800; color: var(--navy); margin: 4px 0; }
-    .spend-box .s-sub { font-size: 0.7rem; color: #777; }
+    .acd-info strong { color: var(--teal); }
+
+    /* ── Calculation flow ────────────────────────────────────────────────── */
+    .calc-flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 20px 0 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .flow-node {
+      flex: 1;
+      min-width: 110px;
+      background: #fff;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      padding: 12px 10px;
+      text-align: center;
+    }
+    .flow-node .fn-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 3px;
+    }
+    .flow-node .fn-val {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--navy);
+    }
+    .flow-node .fn-sub {
+      font-size: 0.67rem;
+      color: #999;
+      margin-top: 2px;
+    }
+    .flow-node.fn-gross  { border-color: #bbb; background: #f5f5f5; }
+    .flow-node.fn-acd    { border-color: #a0d4cb; background: #e6f4f1; }
+    .flow-node.fn-acd .fn-val { color: var(--teal); }
+    .flow-node.fn-net    { border-color: #99c4e7; background: var(--light-blue); }
+    .flow-node.fn-incr   { border-color: #92d050; background: #dff6dd; }
+    .flow-node.fn-maxaco { border-color: var(--orange); background: #fff4cc; }
+    .flow-node.fn-maxaco .fn-val { color: var(--orange); }
+
+    .flow-arrow {
+      font-size: 1.3rem;
+      color: #aaa;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+    .flow-arrow-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+      padding: 0 2px;
+    }
+    .flow-arrow-label .fal-arrow { font-size: 1.2rem; color: #aaa; }
+    .flow-arrow-label .fal-tag {
+      font-size: 0.65rem;
+      background: var(--teal);
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .flow-arrow-label .fal-tag-aco {
+      font-size: 0.65rem;
+      background: var(--orange);
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
 
     /* ── Milestone table ─────────────────────────────────────────────────── */
     .ms-toolbar {
@@ -163,6 +276,7 @@
     }
     thead th:first-child { border-radius: 6px 0 0 0; }
     thead th:last-child  { border-radius: 0 6px 0 0; }
+    thead th.col-net { background: var(--teal); }
     tbody tr:nth-child(even) { background: #fafafa; }
     tbody td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
     tbody td input[type="number"] {
@@ -180,6 +294,7 @@
     }
     .ms-lbl { font-weight: 700; color: var(--navy); }
     .ms-lbl.baseline-row { color: #888; }
+    .td-net { background: #f0faf8; font-size: 0.85rem; color: var(--teal); font-weight: 600; }
 
     .share-wrap { display: flex; align-items: center; gap: 6px; }
     .share-track {
@@ -206,6 +321,8 @@
     .summary-table { width: 100%; border-collapse: collapse; }
     .summary-table td { padding: 7px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
     .summary-table td:last-child { text-align: right; font-weight: 600; color: var(--navy); }
+    .summary-table tr.row-net td { background: #f0faf8; color: var(--teal); }
+    .summary-table tr.row-net td:last-child { color: var(--teal); }
     .summary-highlight {
       background: var(--navy); color: #fff;
       border-radius: 6px; padding: 12px 16px;
@@ -229,21 +346,24 @@
       text-align: center; padding: 14px;
       font-size: 0.78rem; margin-top: 24px;
     }
+    .footer a { color: rgba(255,255,255,.8); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
 
     /* ── Responsive ──────────────────────────────────────────────────────── */
     @media (max-width: 760px) {
       .offer-grid    { grid-template-columns: 1fr 1fr; }
-      .spend-grid    { grid-template-columns: 1fr 1fr; }
       .results-grid  { grid-template-columns: 1fr; }
       .header        { flex-direction: column; gap: 10px; padding: 16px 20px; }
+      .version-nav   { padding: 8px 16px; flex-wrap: wrap; }
       .container     { padding: 14px; }
+      .calc-flow     { flex-wrap: nowrap; }
     }
 
     /* ── Print ───────────────────────────────────────────────────────────── */
     @media print {
       body { background: #fff; }
-      .action-bar { display: none; }
-      .header, .offer-card.selected, .spend-box, tfoot td, .summary-highlight {
+      .action-bar, .version-nav { display: none; }
+      .header, .offer-card.selected, .flow-node, tfoot td, .summary-highlight {
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
@@ -256,18 +376,21 @@
 <!-- ── Header ─────────────────────────────────────────────────────────────── -->
 <div class="header">
   <div>
-    <h1>Service Specific Conditional ACO Calculator</h1>
-    <div class="sub">Azure Accelerate · GA May 26, 2026</div>
+    <h1>Service Specific Conditional ACO Calculator <span style="opacity:.7;font-weight:400">v2</span></h1>
+    <div class="sub">Azure Accelerate · GA May 26, 2026 · Now with Azure Commitment Discount (ACD)</div>
   </div>
-  <span class="badge">Azure Accelerate</span>
+  <div class="header-badges">
+    <span class="badge-v2">v2 · ACD-Aware</span>
+    <span class="badge">Azure Accelerate</span>
+  </div>
 </div>
 <div class="orange-bar"></div>
 
 <!-- ── Version nav ────────────────────────────────────────────────────────── -->
-<div style="background:#e8f4fd;border-bottom:1px solid #b3d7f5;padding:8px 40px;display:flex;align-items:center;gap:12px;font-size:0.82rem;color:#555;">
-  <span>You are viewing the <strong>Original Calculator</strong> (v1 — no ACD)</span>
+<div class="version-nav">
+  <span>You are viewing <span class="v-tag">v2</span> — includes Azure Commitment Discount (ACD) support</span>
   <span>·</span>
-  <a href="index-v2.html" style="color:#0078d4;text-decoration:none;font-weight:600;">✨ Try v2 with Azure Commitment Discount (ACD) →</a>
+  <a href="index.html">← Back to Original Calculator (v1, no ACD)</a>
 </div>
 
 <div class="container">
@@ -315,52 +438,86 @@
     </div>
   </div>
 
-  <!-- ── Step 2: Spend Target ───────────────────────────────────────────── -->
+  <!-- ── Step 2: Spend Target + ACD ────────────────────────────────────── -->
   <div class="card">
     <div class="card-header">
       <div class="step">2</div>
       <div>
-        <h2>Configure Spend Target</h2>
-        <div class="hint">Spend target = Baseline × 1.20, or $20,000 minimum floor — whichever is higher.</div>
+        <h2>Configure Spend Target &amp; Azure Commitment Discount (ACD)</h2>
+        <div class="hint">Enter the gross baseline and any ACD. The net invoice (after ACD) drives milestone attainment and ACO calculations.</div>
       </div>
-      <div class="right-hint">Shared rules: 20% min. growth · $20K min. spend · 1-year duration</div>
+      <div class="right-hint">20% min. growth · $20K min. spend · 1-year</div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label for="baseline">Customer Baseline Spend (USD)</label>
+        <label for="baseline">Customer Baseline Gross Spend (USD)</label>
         <input type="number" id="baseline" placeholder="e.g. 50000" min="0" step="1000" oninput="calculate()">
-        <div class="field-note">Current annual spend on the selected service workload</div>
+        <div class="field-note">Current annual gross consumption on the selected service workload</div>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="max-width:220px;">
+        <label for="acd-pct">Azure Commitment Discount (ACD %)</label>
+        <input type="number" id="acd-pct" placeholder="e.g. 10" min="0" max="100" step="0.5" oninput="calculate()">
+        <div class="field-note">Percentage discount applied to gross consumption to arrive at net invoice (0–100%)</div>
+      </div>
+      <div class="form-group" style="max-width:220px;">
         <label>ACO Rate</label>
         <div class="computed" id="aco-rate-display">—</div>
         <div class="field-note">Determined by the selected offer type</div>
       </div>
     </div>
 
-    <div class="spend-grid">
-      <div class="spend-box b-baseline">
-        <div class="s-lbl">Baseline</div>
-        <div class="s-val" id="sum-baseline">—</div>
-        <div class="s-sub">Current spend</div>
+    <div class="acd-info">
+      <strong>How ACD affects your ACO:</strong>
+      ACD is a pre-negotiated discount that reduces the customer's invoice. Because ACO credits are applied to the <em>net invoice</em> (after ACD), milestone attainment and the max ACO award are both calculated on post-ACD spend. A higher ACD reduces the net incremental spend, which in turn reduces the Max ACO Award.
+    </div>
+
+    <!-- ── Calculation Flow ────────────────────────────────────────────── -->
+    <div class="calc-flow" id="calc-flow-row">
+      <div class="flow-node fn-gross">
+        <div class="fn-label">① Gross Consumption</div>
+        <div class="fn-val" id="flow-gross">—</div>
+        <div class="fn-sub">Target gross spend</div>
       </div>
-      <div class="spend-box b-target">
-        <div class="s-lbl">Spend Target</div>
-        <div class="s-val" id="sum-target">—</div>
-        <div class="s-sub" id="sum-target-sub">max(baseline × 1.20, $20K)</div>
+      <div class="flow-arrow-label">
+        <span class="fal-arrow">→</span>
+        <span class="fal-tag" id="flow-acd-tag">ACD 0%</span>
       </div>
-      <div class="spend-box b-incr">
-        <div class="s-lbl">Incremental Spend</div>
-        <div class="s-val" id="sum-incr">—</div>
-        <div class="s-sub">Target − Baseline</div>
+      <div class="flow-node fn-acd">
+        <div class="fn-label">② ACD Applied</div>
+        <div class="fn-val" id="flow-acd-amt">—</div>
+        <div class="fn-sub">Discount amount</div>
       </div>
-      <div class="spend-box b-maxaco">
-        <div class="s-lbl">Max ACO Award</div>
-        <div class="s-val" id="sum-maxaco">—</div>
-        <div class="s-sub" id="sum-maxaco-sub">Incremental × ACO rate</div>
+      <div class="flow-arrow">
+        <span>→</span>
+      </div>
+      <div class="flow-node fn-net">
+        <div class="fn-label">③ Net Invoice</div>
+        <div class="fn-val" id="flow-net">—</div>
+        <div class="fn-sub">Gross − ACD</div>
+      </div>
+      <div class="flow-arrow-label">
+        <span class="fal-arrow">→</span>
+        <span class="fal-tag-aco" id="flow-aco-tag">ACO credits</span>
+      </div>
+      <div class="flow-node fn-incr">
+        <div class="fn-label">Incremental Net</div>
+        <div class="fn-val" id="flow-incr">—</div>
+        <div class="fn-sub">Net target − Net baseline</div>
+      </div>
+      <div class="flow-arrow">
+        <span>→</span>
+      </div>
+      <div class="flow-node fn-maxaco">
+        <div class="fn-label">④ Max ACO Award</div>
+        <div class="fn-val" id="flow-maxaco">—</div>
+        <div class="fn-sub">Incr. Net × ACO rate</div>
       </div>
     </div>
+
+    <p style="font-size:0.72rem;color:#aaa;margin-top:6px;">
+      Gross target = max(Baseline × 1.20, $20,000). Net invoice = Gross × (1 − ACD%). Max ACO = (Net Target − Net Baseline) × ACO Rate.
+    </p>
   </div>
 
   <!-- ── Step 3: Milestones ─────────────────────────────────────────────── -->
@@ -369,13 +526,13 @@
       <div class="step">3</div>
       <div>
         <h2>Configure Milestones</h2>
-        <div class="hint">Set target spend and ACO for each of the 4 milestones. Uneven distribution is accepted.</div>
+        <div class="hint">Enter gross target spend per milestone. The net invoice (after ACD) is calculated automatically and determines milestone attainment. ACO is applied to the net invoice.</div>
       </div>
       <div class="right-hint">4 milestones · Flexible timeline</div>
     </div>
 
     <div class="ms-toolbar">
-      <p>Total ACO across all milestones must not exceed the Max ACO Award.</p>
+      <p>Total ACO across all milestones must not exceed the Max ACO Award (based on net invoice).</p>
       <button class="btn btn-outline" onclick="autoDistribute()">⚡ Auto-distribute evenly</button>
     </div>
 
@@ -383,10 +540,11 @@
       <thead>
         <tr>
           <th style="width:90px;">Milestone</th>
-          <th>Target Spend ($)</th>
+          <th>Gross Target Spend ($)</th>
+          <th class="col-net">Net Invoice ($) <span style="font-size:0.7rem;opacity:.8;">after ACD</span></th>
           <th>ACO Awarded ($)</th>
           <th style="width:160px;">Share of Total</th>
-          <th>Cumulative Spend</th>
+          <th>Cumul. Gross</th>
         </tr>
       </thead>
       <tbody>
@@ -394,6 +552,7 @@
         <tr>
           <td class="ms-lbl baseline-row">Baseline</td>
           <td><div class="computed" id="m0-spend" style="padding:6px 9px;font-size:.88rem;">—</div></td>
+          <td class="td-net"><div class="computed" id="m0-net" style="padding:6px 9px;font-size:.88rem;background:#f0faf8;border-color:#a0d4cb;color:var(--teal);">—</div></td>
           <td><div class="computed" style="padding:6px 9px;font-size:.88rem;">$0</div></td>
           <td>—</td>
           <td>—</td>
@@ -401,8 +560,9 @@
         <!-- M1 -->
         <tr>
           <td class="ms-lbl">M1</td>
-          <td><input type="number" id="m1-spend" placeholder="Target spend" min="0" step="500" oninput="onMilestoneChange()"></td>
-          <td><input type="number" id="m1-aco"   placeholder="ACO amount"   min="0" step="100" oninput="onMilestoneChange()"></td>
+          <td><input type="number" id="m1-spend" placeholder="Gross spend" min="0" step="500" oninput="onMilestoneChange()"></td>
+          <td class="td-net"><div class="computed" id="m1-net" style="padding:6px 9px;font-size:.88rem;background:#f0faf8;border-color:#a0d4cb;color:var(--teal);">—</div></td>
+          <td><input type="number" id="m1-aco"   placeholder="ACO amount"  min="0" step="100" oninput="onMilestoneChange()"></td>
           <td>
             <div class="share-wrap">
               <div class="share-track"><div class="share-fill" id="m1-fill" style="width:0%"></div></div>
@@ -414,8 +574,9 @@
         <!-- M2 -->
         <tr>
           <td class="ms-lbl">M2</td>
-          <td><input type="number" id="m2-spend" placeholder="Target spend" min="0" step="500" oninput="onMilestoneChange()"></td>
-          <td><input type="number" id="m2-aco"   placeholder="ACO amount"   min="0" step="100" oninput="onMilestoneChange()"></td>
+          <td><input type="number" id="m2-spend" placeholder="Gross spend" min="0" step="500" oninput="onMilestoneChange()"></td>
+          <td class="td-net"><div class="computed" id="m2-net" style="padding:6px 9px;font-size:.88rem;background:#f0faf8;border-color:#a0d4cb;color:var(--teal);">—</div></td>
+          <td><input type="number" id="m2-aco"   placeholder="ACO amount"  min="0" step="100" oninput="onMilestoneChange()"></td>
           <td>
             <div class="share-wrap">
               <div class="share-track"><div class="share-fill" id="m2-fill" style="width:0%"></div></div>
@@ -427,8 +588,9 @@
         <!-- M3 -->
         <tr>
           <td class="ms-lbl">M3</td>
-          <td><input type="number" id="m3-spend" placeholder="Target spend" min="0" step="500" oninput="onMilestoneChange()"></td>
-          <td><input type="number" id="m3-aco"   placeholder="ACO amount"   min="0" step="100" oninput="onMilestoneChange()"></td>
+          <td><input type="number" id="m3-spend" placeholder="Gross spend" min="0" step="500" oninput="onMilestoneChange()"></td>
+          <td class="td-net"><div class="computed" id="m3-net" style="padding:6px 9px;font-size:.88rem;background:#f0faf8;border-color:#a0d4cb;color:var(--teal);">—</div></td>
+          <td><input type="number" id="m3-aco"   placeholder="ACO amount"  min="0" step="100" oninput="onMilestoneChange()"></td>
           <td>
             <div class="share-wrap">
               <div class="share-track"><div class="share-fill" id="m3-fill" style="width:0%"></div></div>
@@ -440,8 +602,9 @@
         <!-- M4 -->
         <tr>
           <td class="ms-lbl">M4</td>
-          <td><input type="number" id="m4-spend" placeholder="Target spend" min="0" step="500" oninput="onMilestoneChange()"></td>
-          <td><input type="number" id="m4-aco"   placeholder="ACO amount"   min="0" step="100" oninput="onMilestoneChange()"></td>
+          <td><input type="number" id="m4-spend" placeholder="Gross spend" min="0" step="500" oninput="onMilestoneChange()"></td>
+          <td class="td-net"><div class="computed" id="m4-net" style="padding:6px 9px;font-size:.88rem;background:#f0faf8;border-color:#a0d4cb;color:var(--teal);">—</div></td>
+          <td><input type="number" id="m4-aco"   placeholder="ACO amount"  min="0" step="100" oninput="onMilestoneChange()"></td>
           <td>
             <div class="share-wrap">
               <div class="share-track"><div class="share-fill" id="m4-fill" style="width:0%"></div></div>
@@ -454,7 +617,8 @@
       <tfoot>
         <tr>
           <td>Totals</td>
-          <td id="foot-target">—</td>
+          <td id="foot-gross">—</td>
+          <td id="foot-net">—</td>
           <td id="foot-aco">—</td>
           <td id="foot-pct">—</td>
           <td>—</td>
@@ -474,7 +638,7 @@
       <div class="step">4</div>
       <div>
         <h2>Results Summary</h2>
-        <div class="hint">For internal and external review.</div>
+        <div class="hint">For internal and external review. All ACO values are based on net invoice (post-ACD) spend.</div>
       </div>
     </div>
 
@@ -482,12 +646,14 @@
       <!-- Left: summary numbers -->
       <div>
         <table class="summary-table">
-          <tr><td>Offer Type</td>      <td id="res-offer">—</td></tr>
-          <tr><td>ACO Rate</td>        <td id="res-rate">—</td></tr>
-          <tr><td>Baseline Spend</td>  <td id="res-baseline">—</td></tr>
-          <tr><td>Spend Target</td>    <td id="res-target">—</td></tr>
-          <tr><td>Incremental Spend</td><td id="res-incr">—</td></tr>
-          <tr><td>Max ACO Award</td>   <td id="res-maxaco">—</td></tr>
+          <tr><td>Offer Type</td>                   <td id="res-offer">—</td></tr>
+          <tr><td>ACO Rate</td>                     <td id="res-rate">—</td></tr>
+          <tr><td>Gross Baseline Spend</td>         <td id="res-baseline">—</td></tr>
+          <tr><td>Gross Spend Target</td>           <td id="res-gross-target">—</td></tr>
+          <tr class="row-net"><td>ACD (%)</td>      <td id="res-acd-pct">—</td></tr>
+          <tr class="row-net"><td>Net Invoice Target</td><td id="res-net-target">—</td></tr>
+          <tr class="row-net"><td>Net Incremental Spend</td><td id="res-net-incr">—</td></tr>
+          <tr><td>Max ACO Award</td>                <td id="res-maxaco">—</td></tr>
         </table>
         <div class="summary-highlight">
           Total ACO Award: <span id="res-total">—</span>
@@ -504,20 +670,21 @@
 
     <!-- Milestone breakdown for review -->
     <div class="review-section">
-      <h3>Milestone Breakdown</h3>
+      <h3>Milestone Breakdown (Net Invoice basis)</h3>
       <table>
         <thead>
           <tr>
             <th>Milestone</th>
-            <th>Target Spend</th>
-            <th>Incremental at Milestone</th>
+            <th>Gross Target Spend</th>
+            <th class="col-net">Net Invoice</th>
+            <th>Incr. Net at Milestone</th>
             <th>ACO Awarded</th>
             <th>Share of ACO</th>
           </tr>
         </thead>
         <tbody id="review-tbody">
           <tr>
-            <td colspan="5" style="text-align:center;color:#888;padding:20px 0;">
+            <td colspan="6" style="text-align:center;color:#888;padding:20px 0;">
               Enter a baseline spend and configure milestones to see results.
             </td>
           </tr>
@@ -534,8 +701,9 @@
 </div><!-- /container -->
 
 <div class="footer">
-  Service Specific Conditional ACO &nbsp;·&nbsp; Azure Accelerate &nbsp;·&nbsp; GA May 26, 2026
-  &nbsp;|&nbsp; For internal and external review
+  Service Specific Conditional ACO v2 &nbsp;·&nbsp; Azure Accelerate &nbsp;·&nbsp; GA May 26, 2026
+  &nbsp;|&nbsp; ACD-Aware &nbsp;|&nbsp;
+  <a href="index.html">← Original Calculator (v1)</a>
 </div>
 
 <!-- ── JavaScript ─────────────────────────────────────────────────────────── -->
@@ -586,8 +754,8 @@ let chart = null;
 const $ = id => document.getElementById(id);
 const numVal = id => { const v = parseFloat($(id).value); return isNaN(v) ? null : v; };
 const setText = (id, t) => { const el = $(id); if (el) el.textContent = t; };
-const fmt  = n => (n == null || isNaN(n)) ? '—' : '$' + Math.round(n).toLocaleString('en-US');
-const pctS = n => (n == null || isNaN(n)) ? '—' : Math.round(n * 100) + '%';
+const fmt   = n => (n == null || isNaN(n)) ? '—' : '$' + Math.round(n).toLocaleString('en-US');
+const pctFmt = n => (n == null || isNaN(n)) ? '—' : n.toFixed(2).replace(/\.?0+$/, '') + '%';
 
 /* ── Offer selection ────────────────────────────────────────────────────── */
 function selectOffer(key) {
@@ -605,29 +773,45 @@ function selectOffer(key) {
 /* ── Core calculation ───────────────────────────────────────────────────── */
 function calculate() {
   const baseline = numVal('baseline');
+  const acdPct   = numVal('acd-pct') || 0;            // default 0% if blank
+  const acdRate  = Math.max(0, Math.min(100, acdPct)) / 100;
+  const netRate  = 1 - acdRate;
 
-  // Update ACO rate display regardless
   const o = OFFERS[currentOffer];
 
+  // Update ACD tag in flow arrow
+  setText('flow-acd-tag', 'ACD ' + pctFmt(acdPct || 0));
+  setText('flow-aco-tag', 'ACO ' + o.rateLabel);
+
   if (baseline === null || baseline < 0) {
-    ['sum-baseline','sum-target','sum-incr','sum-maxaco'].forEach(id => setText(id, '—'));
+    ['flow-gross','flow-acd-amt','flow-net','flow-incr','flow-maxaco'].forEach(id => setText(id, '—'));
     setText('m0-spend', '—');
+    setText('m0-net', '—');
     return;
   }
 
-  const growthTarget = baseline * (1 + MIN_GROWTH);
-  const target       = Math.max(growthTarget, MIN_SPEND);
-  const incr         = target - baseline;
-  const maxAco       = incr * o.rate;
+  // Gross figures
+  const grossTarget = Math.max(baseline * (1 + MIN_GROWTH), MIN_SPEND);
 
-  setText('sum-baseline', fmt(baseline));
-  setText('sum-target',   fmt(target));
-  setText('sum-incr',     fmt(incr));
-  setText('sum-maxaco',   fmt(maxAco));
-  setText('m0-spend',     fmt(baseline));
-  setText('sum-target-sub', target === MIN_SPEND && growthTarget < MIN_SPEND
-    ? '$20K minimum floor applied'
-    : 'Baseline × 1.20');
+  // Net figures
+  const netBaseline = baseline   * netRate;
+  const netTarget   = grossTarget * netRate;
+  const netIncr     = netTarget  - netBaseline;
+  const maxAco      = netIncr    * o.rate;
+
+  // ACD amount displayed
+  const acdAmtTarget = grossTarget - netTarget;
+
+  // Update flow row
+  setText('flow-gross',   fmt(grossTarget));
+  setText('flow-acd-amt', fmt(acdAmtTarget));
+  setText('flow-net',     fmt(netTarget));
+  setText('flow-incr',    fmt(netIncr));
+  setText('flow-maxaco',  fmt(maxAco));
+
+  // Baseline row in milestone table
+  setText('m0-spend', fmt(baseline));
+  setText('m0-net',   fmt(netBaseline));
 
   onMilestoneChange();
 }
@@ -637,35 +821,45 @@ function onMilestoneChange() {
   const baseline = numVal('baseline');
   if (baseline === null || baseline < 0) return;
 
-  const o      = OFFERS[currentOffer];
-  const target = Math.max(baseline * (1 + MIN_GROWTH), MIN_SPEND);
-  const incr   = target - baseline;
-  const maxAco = incr * o.rate;
+  const acdPct  = numVal('acd-pct') || 0;
+  const acdRate = Math.max(0, Math.min(100, acdPct)) / 100;
+  const netRate = 1 - acdRate;
 
-  let totalAco = 0;
-  let errors   = [];
-  let prevSpend = baseline;
+  const o           = OFFERS[currentOffer];
+  const grossTarget = Math.max(baseline * (1 + MIN_GROWTH), MIN_SPEND);
+  const netBaseline = baseline   * netRate;
+  const netTarget   = grossTarget * netRate;
+  const netIncr     = netTarget  - netBaseline;
+  const maxAco      = netIncr    * o.rate;
+
+  let totalAco  = 0;
+  let errors    = [];
+  let prevGross = baseline;
 
   for (let i = 1; i <= 4; i++) {
-    const spendEl = $('m' + i + '-spend');
-    const acoEl   = $('m' + i + '-aco');
-    const mSpend  = numVal('m' + i + '-spend');
-    const mAco    = numVal('m' + i + '-aco');
+    const spendEl  = $('m' + i + '-spend');
+    const acoEl    = $('m' + i + '-aco');
+    const mGross   = numVal('m' + i + '-spend');
+    const mAco     = numVal('m' + i + '-aco');
 
     spendEl.classList.remove('input-error');
     acoEl.classList.remove('input-error');
 
-    /* Spend order validation */
-    if (mSpend !== null) {
-      if (mSpend <= prevSpend) {
+    // Compute net invoice for this milestone
+    const mNet = mGross !== null ? mGross * netRate : null;
+    setText('m' + i + '-net', mNet !== null ? fmt(mNet) : '—');
+
+    /* Gross spend order validation */
+    if (mGross !== null) {
+      if (mGross <= prevGross) {
         spendEl.classList.add('input-error');
         const prev = i === 1 ? 'Baseline' : 'M' + (i - 1);
-        errors.push('M' + i + ' target spend must exceed ' + prev + '.');
+        errors.push('M' + i + ' gross target spend must exceed ' + prev + '.');
       }
-      if (i === 4 && mSpend < target - 0.01) {
-        errors.push('M4 target spend should reach the final spend target (' + fmt(target) + ').');
+      if (i === 4 && mGross < grossTarget - 0.01) {
+        errors.push('M4 gross target spend should reach the gross spend target (' + fmt(grossTarget) + ').');
       }
-      prevSpend = mSpend;
+      prevGross = mGross;
     }
 
     /* ACO sign validation */
@@ -678,11 +872,11 @@ function onMilestoneChange() {
       }
     }
 
-    /* Share bars */
+    /* Share bars (as fraction of maxAco) */
     const share = maxAco > 0 && mAco !== null ? mAco / maxAco : 0;
     $('m' + i + '-fill').style.width = Math.min(share * 100, 100) + '%';
-    setText('m' + i + '-pct', mAco !== null ? Math.round(share * 100) + '%' : '—');
-    setText('m' + i + '-cumul', mSpend !== null ? fmt(mSpend) : '—');
+    setText('m' + i + '-pct',   mAco   !== null ? Math.round(share * 100) + '%' : '—');
+    setText('m' + i + '-cumul', mGross !== null ? fmt(mGross) : '—');
   }
 
   /* Footer totals */
@@ -690,12 +884,13 @@ function onMilestoneChange() {
   footAco.textContent = fmt(totalAco);
   if (totalAco > maxAco + 0.01) {
     footAco.className = 'total-over';
-    errors.push('Total ACO (' + fmt(totalAco) + ') exceeds the Max ACO Award (' + fmt(maxAco) + ').');
+    errors.push('Total ACO (' + fmt(totalAco) + ') exceeds the Max ACO Award (' + fmt(maxAco) + ') based on net invoice.');
   } else {
     footAco.className = 'total-ok';
   }
-  setText('foot-target', fmt(target));
-  setText('foot-pct', maxAco > 0 ? Math.round(totalAco / maxAco * 100) + '% of max' : '—');
+  setText('foot-gross', fmt(grossTarget));
+  setText('foot-net',   fmt(netTarget));
+  setText('foot-pct',   maxAco > 0 ? Math.round(totalAco / maxAco * 100) + '% of max' : '—');
 
   /* Validation banner */
   const banner = $('v-banner');
@@ -710,55 +905,63 @@ function onMilestoneChange() {
     banner.className = 'v-banner v-ok';
     banner.querySelector('.v-icon').textContent = '✅';
     msg.textContent = 'Configuration is valid. Total ACO ' + fmt(totalAco) +
-      ' is within the Max ACO Award of ' + fmt(maxAco) + '.';
+      ' is within the Max ACO Award of ' + fmt(maxAco) +
+      ' (calculated on net invoice after ' + pctFmt(acdPct || 0) + ' ACD).';
   } else {
     banner.style.display = 'none';
   }
 
-  updateResults(baseline, target, incr, maxAco, totalAco, o);
+  updateResults(baseline, grossTarget, netBaseline, netTarget, netIncr, maxAco, totalAco, acdPct || 0, o);
   updateChart();
 }
 
 /* ── Results panel ──────────────────────────────────────────────────────── */
-function updateResults(baseline, target, incr, maxAco, totalAco, o) {
-  setText('res-offer',    o.name);
-  setText('res-rate',     o.rateLabel + ' · ' + o.roi);
-  setText('res-baseline', fmt(baseline));
-  setText('res-target',   fmt(target));
-  setText('res-incr',     fmt(incr));
-  setText('res-maxaco',   fmt(maxAco));
-  setText('res-total',    fmt(totalAco));
+function updateResults(baseline, grossTarget, netBaseline, netTarget, netIncr, maxAco, totalAco, acdPct, o) {
+  setText('res-offer',       o.name);
+  setText('res-rate',        o.rateLabel + ' · ' + o.roi);
+  setText('res-baseline',    fmt(baseline));
+  setText('res-gross-target',fmt(grossTarget));
+  setText('res-acd-pct',     pctFmt(acdPct));
+  setText('res-net-target',  fmt(netTarget));
+  setText('res-net-incr',    fmt(netIncr));
+  setText('res-maxaco',      fmt(maxAco));
+  setText('res-total',       fmt(totalAco));
 
   /* Milestone breakdown table */
   const rows = [];
-  let prevSpend = baseline;
+  let prevNet = netBaseline;
+  const acdRate = acdPct / 100;
+  const netRate = 1 - acdRate;
 
   for (let i = 1; i <= 4; i++) {
-    const mSpend = numVal('m' + i + '-spend');
-    const mAco   = numVal('m' + i + '-aco');
-    const mIncr  = mSpend !== null ? mSpend - prevSpend : null;
-    const share  = totalAco > 0 && mAco !== null
+    const mGross  = numVal('m' + i + '-spend');
+    const mAco    = numVal('m' + i + '-aco');
+    const mNet    = mGross !== null ? mGross * netRate : null;
+    const mIncrNet = mNet !== null ? mNet - prevNet : null;
+    const share   = totalAco > 0 && mAco !== null
       ? (mAco / totalAco * 100).toFixed(0) + '%'
       : '—';
 
     rows.push(
       '<tr>' +
       '<td style="font-weight:700;color:var(--navy);">M' + i + '</td>' +
-      '<td>' + (mSpend !== null ? fmt(mSpend) : '—') + '</td>' +
-      '<td>' + (mIncr  !== null ? fmt(mIncr)  : '—') + '</td>' +
+      '<td>' + (mGross !== null ? fmt(mGross) : '—') + '</td>' +
+      '<td style="background:#f0faf8;color:var(--teal);font-weight:600;">' + (mNet !== null ? fmt(mNet) : '—') + '</td>' +
+      '<td>' + (mIncrNet !== null ? fmt(mIncrNet) : '—') + '</td>' +
       '<td style="font-weight:700;color:var(--orange);">' + (mAco !== null ? fmt(mAco) : '—') + '</td>' +
       '<td>' + share + '</td>' +
       '</tr>'
     );
 
-    if (mSpend !== null) prevSpend = mSpend;
+    if (mNet !== null) prevNet = mNet;
   }
 
   rows.push(
     '<tr style="background:var(--light-gray);font-weight:700;">' +
     '<td>Total</td>' +
-    '<td>' + fmt(target) + '</td>' +
-    '<td>' + fmt(incr) + '</td>' +
+    '<td>' + fmt(grossTarget) + '</td>' +
+    '<td style="background:#e6f4f1;color:var(--teal);">' + fmt(netTarget) + '</td>' +
+    '<td>' + fmt(netIncr) + '</td>' +
     '<td style="color:var(--orange);">' + fmt(totalAco) + '</td>' +
     '<td>100%</td>' +
     '</tr>'
@@ -817,15 +1020,22 @@ function autoDistribute() {
     return;
   }
 
-  const o      = OFFERS[currentOffer];
-  const target = Math.max(baseline * (1 + MIN_GROWTH), MIN_SPEND);
-  const incr   = target - baseline;
-  const maxAco = incr * o.rate;
-  const step   = incr / 4;
-  const acoStep = maxAco / 4;
+  const acdPct  = numVal('acd-pct') || 0;
+  const acdRate = Math.max(0, Math.min(100, acdPct)) / 100;
+  const netRate = 1 - acdRate;
+
+  const o           = OFFERS[currentOffer];
+  const grossTarget = Math.max(baseline * (1 + MIN_GROWTH), MIN_SPEND);
+  const netBaseline = baseline * netRate;
+  const netTarget   = grossTarget * netRate;
+  const netIncr     = netTarget - netBaseline;
+  const maxAco      = netIncr * o.rate;
+
+  const grossStep = (grossTarget - baseline) / 4;
+  const acoStep   = maxAco / 4;
 
   for (let i = 1; i <= 4; i++) {
-    $('m' + i + '-spend').value = Math.round(baseline + step * i);
+    $('m' + i + '-spend').value = Math.round(baseline + grossStep * i);
     $('m' + i + '-aco').value   = +(acoStep).toFixed(2);
   }
 
@@ -835,6 +1045,7 @@ function autoDistribute() {
 /* ── Reset ──────────────────────────────────────────────────────────────── */
 function resetAll() {
   $('baseline').value = '';
+  $('acd-pct').value  = '';
   for (let i = 1; i <= 4; i++) {
     $('m' + i + '-spend').value = '';
     $('m' + i + '-aco').value   = '';
